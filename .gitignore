@@ -1,0 +1,97 @@
+# ==========================================
+# Python - 基础环境与缓存
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.env
+.venv
+venv/
+ENV/
+install_isolated/
+devel_isolated/
+
+# ==========================================
+# LLM/ML - 模型权重与检查点 (大文件)
+# ==========================================
+# 忽略根目录下的模型下载和保存目录
+/model/
+/checkpoints/
+/output/
+
+# 忽略常见的深度学习权重格式
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.ckpt
+*.joblib
+*.h5
+*.model
+*.weights
+*.gguf
+*.onnx
+
+# ==========================================
+# LLM/ML - 数据集
+# ==========================================
+# 忽略数据存放目录
+/data/
+/dataset/
+/datasets/
+# 如果数据以特定格式存放也可在此补充
+*.arrow
+*.parquet
+*.npy
+*.npz
+*.bin
+*.idx
+
+# ==========================================
+# LLM/ML - 训练日志与可视化
+# ==========================================
+/logs/
+/runs/
+/wandb/
+/tensorboard/
+*.log
+*.tfevents.*
+
+# ==========================================
+# IDE & 系统相关
+# ==========================================
+.vscode/
+.idea/
+.trae/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# 项目特定
+# ==========================================
+.cache/
+.huggingface/
+.ipynb_checkpoints/
+node_modules/
+# 忽略 configs 下的大型 tokenizer 文件 (可选，如果太大建议忽略)
+# configs/tokenizer.json
