@@ -190,7 +190,7 @@ class Qwen3Config(PretrainedConfig):
         use_lora=False,
         lora_mode="lora",
         lora_rank=8,
-        lora_alpha=16,
+        lora_alpha=None,
         lora_dropout=0.05,
         **kwargs,
     ):
@@ -221,7 +221,7 @@ class Qwen3Config(PretrainedConfig):
         self.use_lora = use_lora
         self.lora_mode = lora_mode if use_lora else "none"
         self.lora_rank = lora_rank
-        self.lora_alpha = lora_alpha
+        self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_dropout = lora_dropout
         # Validate the correctness of rotary position embeddings parameters
         # BC: if there is a 'type' field, move it to 'rope_type'.

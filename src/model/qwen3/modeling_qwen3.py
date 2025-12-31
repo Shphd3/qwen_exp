@@ -82,7 +82,7 @@ class LoRALinear(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        nn.init.kaiming_uniform_(self.lora_A, a=5**0.5)
+        nn.init.normal_(self.lora_A, mean=0.0, std=1.0 / self.rank)
         nn.init.zeros_(self.lora_B)
 
     def forward(self, x):
@@ -136,7 +136,16 @@ class Qwen3MLPLoRA(nn.Module):
             self.up_proj = None
             self.down_proj = None
 
+        self._init_base_weights()
         self._set_trainable_params()
+
+    def _init_base_weights(self):
+        if self.gate_proj is not None:
+            nn.init.kaiming_uniform_(self.gate_proj.weight, a=5**0.5)
+        if self.up_proj is not None:
+            nn.init.kaiming_uniform_(self.up_proj.weight, a=5**0.5)
+        if self.down_proj is not None:
+            nn.init.kaiming_uniform_(self.down_proj.weight, a=5**0.5)
 
     def _set_trainable_params(self):
         if self.config.lora_mode == "lora":

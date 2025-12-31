@@ -1,0 +1,20 @@
+# 运行参数量验证
+python verify_lora_params.py
+
+# 实验 1: 无 LoRA
+bash run_train_lora.sh 3.0 0 none
+bash run_train_lora.sh 1.0 0 none
+bash run_train_lora.sh 0.5 0 none
+
+# 实验 3: LoRA 模式 (只有 LoRA，无 base)
+bash run_train_lora.sh 0.25 2458 lora
+bash run_train_lora.sh 0.5 2048 lora
+bash run_train_lora.sh 1.0 1536 lora
+
+# 实验 3: LoRA bias 模式 (base 冻结 + LoRA)
+bash run_train_lora.sh 0.25 2458 lora_bias
+bash run_train_lora.sh 0.5 2048 lora_bias
+bash run_train_lora.sh 1.0 1536 lora_bias
+bash run_train_lora.sh 2.0 1024 lora_bias
+bash run_train_lora.sh 4.0 614 lora_bias
+bash run_train_lora.sh 8.0 341 lora_bias
