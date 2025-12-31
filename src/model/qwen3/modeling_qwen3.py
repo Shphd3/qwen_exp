@@ -67,6 +67,29 @@ class Qwen3RMSNorm(nn.Module):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
 
 
+class LoRALinear(nn.Module):
+    def __init__(self, in_features, out_features, rank, alpha, dropout=0.0, bias=False):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.rank = rank
+        self.scaling = alpha / rank if rank > 0 else 1.0
+
+        self.lora_A = nn.Parameter(torch.zeros(rank, in_features))
+        self.lora_B = nn.Parameter(torch.zeros(out_features, rank))
+        self.dropout = nn.Dropout(dropout) if dropout > 0 else nn.Identity()
+
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.kaiming_uniform_(self.lora_A, a=5**0.5)
+        nn.init.zeros_(self.lora_B)
+
+    def forward(self, x):
+        result = self.dropout(x) @ self.lora_A.T @ self.lora_B.T
+        return result * self.scaling
+
+
 class Qwen3MLP(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -81,6 +104,80 @@ class Qwen3MLP(nn.Module):
     def forward(self, x):
         down_proj = self.down_proj(self.act_fn(self.gate_proj(x)) * self.up_proj(x))
         return down_proj
+
+
+class Qwen3MLPLoRA(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.hidden_size = config.hidden_size
+        self.intermediate_size = config.intermediate_size
+        self.act_fn = ACT2FN[config.hidden_act]
+
+        self.gate_lora = LoRALinear(
+            self.hidden_size, self.intermediate_size,
+            config.lora_rank, config.lora_alpha, config.lora_dropout
+        )
+        self.up_lora = LoRALinear(
+            self.hidden_size, self.intermediate_size,
+            config.lora_rank, config.lora_alpha, config.lora_dropout
+        )
+        self.down_lora = LoRALinear(
+            self.intermediate_size, self.hidden_size,
+            config.lora_rank, config.lora_alpha, config.lora_dropout
+        )
+
+        if config.lora_mode == "lora_bias":
+            self.gate_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+            self.up_proj = nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+            self.down_proj = nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
+        else:
+            self.gate_proj = None
+            self.up_proj = None
+            self.down_proj = None
+
+        self._set_trainable_params()
+
+    def _set_trainable_params(self):
+        if self.config.lora_mode == "lora":
+            for param in self.gate_lora.parameters():
+                param.requires_grad = True
+            for param in self.up_lora.parameters():
+                param.requires_grad = True
+            for param in self.down_lora.parameters():
+                param.requires_grad = True
+        elif self.config.lora_mode == "lora_bias":
+            for param in self.gate_proj.parameters():
+                param.requires_grad = False
+            for param in self.up_proj.parameters():
+                param.requires_grad = False
+            for param in self.down_proj.parameters():
+                param.requires_grad = False
+            for param in self.gate_lora.parameters():
+                param.requires_grad = True
+            for param in self.up_lora.parameters():
+                param.requires_grad = True
+            for param in self.down_lora.parameters():
+                param.requires_grad = True
+        else:
+            for param in self.parameters():
+                param.requires_grad = True
+
+    def forward(self, x):
+        gate_output = self.gate_lora(x)
+        up_output = self.up_lora(x)
+
+        if self.config.lora_mode == "lora_bias":
+            gate_output = gate_output + self.gate_proj(x)
+            up_output = up_output + self.up_proj(x)
+
+        activated = self.act_fn(gate_output) * up_output
+        down_output = self.down_lora(activated)
+
+        if self.config.lora_mode == "lora_bias":
+            down_output = down_output + self.down_proj(activated)
+
+        return down_output
 
 
 def rotate_half(x):
@@ -237,7 +334,10 @@ class Qwen3DecoderLayer(GradientCheckpointingLayer):
 
         self.self_attn = Qwen3Attention(config=config, layer_idx=layer_idx)
 
-        self.mlp = Qwen3MLP(config)
+        if config.use_lora:
+            self.mlp = Qwen3MLPLoRA(config)
+        else:
+            self.mlp = Qwen3MLP(config)
         self.input_layernorm = Qwen3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.attention_type = config.layer_types[layer_idx]

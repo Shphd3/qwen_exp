@@ -87,6 +87,15 @@ def parse_args():
     parser.add_argument("--zero_stage", type=int, default=1, choices=[0, 1, 2, 3])
     parser.add_argument("--mlp_ratio", type=float, default=None, help="Ratio of intermediate_size to hidden_size")
     parser.add_argument("--iso_parameter", action="store_true", help="Auto-adjust layers to maintain total parameter count")
+    
+    # LoRA parameters
+    parser.add_argument("--use_lora", action="store_true", help="Use LoRA (Low-Rank Adaptation) for MLP layers")
+    parser.add_argument("--no_lora", action="store_false", dest="use_lora")
+    parser.add_argument("--lora_mode", type=str, default="lora", choices=["lora", "lora_bias"],
+                        help="LoRA mode: 'lora' (only LoRA, no base), 'lora_bias' (frozen base + LoRA)")
+    parser.add_argument("--lora_rank", type=int, default=8, help="LoRA rank for low-rank adaptation")
+    parser.add_argument("--lora_alpha", type=int, default=16, help="LoRA alpha for scaling")
+    parser.add_argument("--lora_dropout", type=float, default=0.05, help="LoRA dropout probability")
 
     # DeepSpeed
     parser = deepspeed.add_config_arguments(parser)
@@ -183,6 +192,19 @@ def main():
         config.intermediate_size = int(config.hidden_size * args.mlp_ratio)
         if rank == 0:
             print(f"Setting intermediate_size to {config.intermediate_size} (ratio {args.mlp_ratio})")
+    
+    # LoRA Configuration
+    if args.use_lora:
+        config.use_lora = True
+        config.lora_mode = args.lora_mode
+        config.lora_rank = args.lora_rank
+        config.lora_alpha = args.lora_alpha
+        config.lora_dropout = args.lora_dropout
+        if rank == 0:
+            print(f"LoRA enabled: mode={args.lora_mode}, rank={args.lora_rank}, alpha={args.lora_alpha}")
+    else:
+        config.use_lora = False
+        config.lora_mode = "none"
             
     model = Qwen3ForCausalLM(config)
     

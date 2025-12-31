@@ -121,11 +121,10 @@ class Qwen3Config(PretrainedConfig):
             The dropout ratio for the attention probabilities.
         use_lora (`bool`, *optional*, defaults to `False`):
             Whether to use LoRA (Low-Rank Adaptation) for MLP layers.
-        lora_mode (`str`, *optional*, defaults to `"full"`):
+        lora_mode (`str`, *optional*, defaults to `"lora"`):
             LoRA mode. Options:
-                - `"full"`: Train both base weights and LoRA adapters (full fine-tuning + LoRA)
-                - `"lora_only"`: Train only LoRA adapters, freeze base weights
-                - `"none"`: Do not use LoRA (standard MLP)
+                - `"lora"`: Use only LoRA matrices, no base matrices (base not counted in total params)
+                - `"lora_bias"`: Use base matrices (frozen) + LoRA matrices (trainable)
         lora_rank (`int`, *optional*, defaults to 8):
             Rank of the LoRA adaptation matrices.
         lora_alpha (`int`, *optional*, defaults to 16):
@@ -188,6 +187,11 @@ class Qwen3Config(PretrainedConfig):
         max_window_layers=28,
         layer_types=None,
         attention_dropout=0.0,
+        use_lora=False,
+        lora_mode="lora",
+        lora_rank=8,
+        lora_alpha=16,
+        lora_dropout=0.05,
         **kwargs,
     ):
         self.vocab_size = vocab_size
@@ -214,6 +218,11 @@ class Qwen3Config(PretrainedConfig):
         self.rope_scaling = rope_scaling
         self.attention_bias = attention_bias
         self.attention_dropout = attention_dropout
+        self.use_lora = use_lora
+        self.lora_mode = lora_mode if use_lora else "none"
+        self.lora_rank = lora_rank
+        self.lora_alpha = lora_alpha
+        self.lora_dropout = lora_dropout
         # Validate the correctness of rotary position embeddings parameters
         # BC: if there is a 'type' field, move it to 'rope_type'.
         if self.rope_scaling is not None and "type" in self.rope_scaling:
